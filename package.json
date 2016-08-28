@@ -15,6 +15,7 @@
     "babel:w": "babel .dest-tsc --out-dir dest --presets es2015 --no-comments --watch",
     "build": "npm run tsc && npm run babel",
     "build:w": "concurrently -k \"npm run tsc:w\" \"npm run babel:w\" ",
+    "prestart": "npm run build",
     "start": "node dest/server.js"
   },
   "keywords": [],

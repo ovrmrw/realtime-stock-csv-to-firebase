@@ -5,7 +5,7 @@ Realtime stock data writer from CSV (on local disk) to Firebase endlessly.
 
 ### Create JSON files
 
-`.config.json`
+**1.. ".config.json"**
 ```
 {
   "csvStoreDir": ["C:", "chokidar"],
@@ -14,21 +14,21 @@ Realtime stock data writer from CSV (on local disk) to Firebase endlessly.
   }
 }
 ```
+In the above case, `C:\chokidar` directory is where CSV files will be created. 
 
-`.keyfile.json` from Firebase Console.
+**2.. ".keyfile.json" from Firebase Console.**
 
 ### Setup
 ```
 $ npm install
 ```
 
-### Run (after build)
+### Run (js files after build)
 ```
-$ npm run build
 $ npm start
 ```
 
-### Run (without build)
+### Run (ts files directly)
 ```
 $ npm run ts
 ```

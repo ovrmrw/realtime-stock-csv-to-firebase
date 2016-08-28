@@ -18,7 +18,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 // Firebaseとのコネクションを前以って張っておく。こうすることで初回Write時に余計なWaitが発生しない。
-firebase.database().ref('lastUpdate').on('value', (snapshot: firebase.database.DataSnapshot) => {
+firebase.database().ref('lastUpdate').on('child_added', (snapshot: firebase.database.DataSnapshot) => {
   console.log(snapshot.val());
 });
 
@@ -48,7 +48,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               'timestamp': now,
             }, result))
             .map(result => {
-              ['コメント', '銘柄コード', '市場コード', '銘柄名称', '現在日付', '現在値詳細時刻'].forEach(key => {
+              ['コメント', '銘柄コード', '市場コード', '銘柄名称', '現在日付'].forEach(key => {
                 delete result[key];
               });
               return result;
@@ -61,23 +61,24 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               });
               return result;
             });
-
           console.timeEnd('parse加工');
 
           // Firebaseに書き込む          
           newResults.forEach((stock, i) => {
-            const updated: number = moment(stock.updated, "YYYYMMDDHHmmss").valueOf();
+            const updated: number = moment(stock.updated, "YYYYMMDDHH:mm:ss").valueOf();
             const diffMinutes: number = Math.abs((now - updated) / 1000 / 60);
+            console.log('diffMinutes: ' + diffMinutes);
             delete stock.updated;
+
             if (diffMinutes < 10 || isTestMode || forcedWriteFlag) { // 現在時刻との差が10分未満ならWrite対象
               console.time('firebase write ' + i);
-              const category = isTestMode ? 'stocks:test' : 'stocks';
-              const treePath = category + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
+              const stockCategory = isTestMode ? 'stocks:test' : 'stocks';
+              const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
 
               // Firebaseに株価データをWriteする。
-              firebase.database().ref(treePath).set(stock, (err) => {
+              firebase.database().ref(stockTreePath).set(stock, (err) => {
                 if (err) { console.error(err); }
-                console.log(treePath);
+                console.log(stockTreePath);
                 console.log(stock);
                 console.timeEnd('firebase write ' + i);
 
@@ -96,7 +97,28 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   });
                 }
               });
+
+              // 日足データをFirebaseに書き込む。
+              let stockSummary = {};
+              const summaryKeys = ['code', 'date', 'timestamp', '現在値', '現在値詳細時刻', '現在値フラグ', '出来高', '始値', '高値', '安値'];
+              Object.keys(stock).map(key => {
+                if (summaryKeys.includes(key)) {
+                  if (key === '現在値') {
+                    stockSummary['終値'] = stock[key];
+                  } else {
+                    stockSummary[key] = stock[key];
+                  }
+                }
+              });
+              const stockSummaryCategory = isTestMode ? 'stocks:summary:test' : 'stocks:summary';
+              const stockSummaryTreePath = stockSummaryCategory + '/' + stock.code + '/' + stock.date;
+              firebase.database().ref(stockSummaryTreePath).set(stockSummary, (err) => {
+                if (err) { console.error(err); }
+                console.log(stockSummaryTreePath);
+                console.log(stockSummary);
+              });
             }
+
           });
         });
       });
