@@ -16,7 +16,8 @@
     "build": "npm run tsc && npm run babel",
     "build:w": "concurrently -k \"npm run tsc:w\" \"npm run babel:w\" ",
     "prestart": "npm run build",
-    "start": "node dest/server.js"
+    "start": "node dest/server.js",
+    "pro": "set PRODUCTION=true && npm start"
   },
   "keywords": [],
   "author": "",

@@ -22,8 +22,13 @@ firebase.database().ref('lastUpdate').on('child_added', (snapshot: firebase.data
   console.log(snapshot.val());
 });
 
-let isTestMode = true; // 本番稼働時はfalseにすること
-let forcedWriteFlag = false; // 本番稼働時はfalseにすること ←必要？ 
+
+const isProductionMode = process.env.PRODUCTION || false; // 本番稼働時はtrueにすること 
+if (isProductionMode) {
+  console.log("=============  PRODUCTION MODE  =============");
+} else {
+  console.log("-------------  TEST MODE  -------------");
+}
 
 
 chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string, filePath: string) => {
@@ -37,7 +42,6 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
         parse(data, { columns: true, auto_parse: true }, (err, results: Array<ObjectFromCsv>) => {
           if (err) { throw err; }
-          console.time('parse加工');
           const now = moment().valueOf();
           let newResults = results
             .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
@@ -61,18 +65,19 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               });
               return result;
             });
-          console.timeEnd('parse加工');
+
 
           // Firebaseに書き込む          
           newResults.forEach((stock, i) => {
             const updated: number = moment(stock.updated, "YYYYMMDDHH:mm:ss").valueOf();
-            const diffMinutes: number = Math.abs((now - updated) / 1000 / 60);
-            console.log('diffMinutes: ' + diffMinutes);
+            const diffMinutes: number = Math.abs((now - updated) / 1000 / 60); // nowとupdatedの差が何分あるか求める。
+            console.log('diffMinutes: ' + diffMinutes + 'm');
             delete stock.updated;
 
-            if (diffMinutes < 10 || isTestMode || forcedWriteFlag) { // 現在時刻との差が10分未満ならWrite対象
-              console.time('firebase write ' + i);
-              const stockCategory = isTestMode ? 'stocks:test' : 'stocks';
+            if ((isInMarketHours() && diffMinutes < 10) || !isProductionMode) { // 現在時刻との差が10分未満ならWrite対象
+
+              console.time(`firebase write ${stock.code} ${i}`);
+              const stockCategory = isProductionMode ? 'stocks' : 'stocks:test';
               const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
 
               // Firebaseに株価データをWriteする。
@@ -80,7 +85,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 if (err) { console.error(err); }
                 console.log(stockTreePath);
                 console.log(stock);
-                console.timeEnd('firebase write ' + i);
+                console.timeEnd(`firebase write ${stock.code} ${i}`);
 
                 // CSVファイルを削除する。
                 if (i === newResults.length - 1) {
@@ -110,13 +115,14 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   }
                 }
               });
-              const stockSummaryCategory = isTestMode ? 'stocks:summary:test' : 'stocks:summary';
+              const stockSummaryCategory = isProductionMode ? 'stocks:summary' : 'stocks:summary:test';
               const stockSummaryTreePath = stockSummaryCategory + '/' + stock.code + '/' + stock.date;
               firebase.database().ref(stockSummaryTreePath).set(stockSummary, (err) => {
                 if (err) { console.error(err); }
                 console.log(stockSummaryTreePath);
                 console.log(stockSummary);
               });
+
             }
 
           });
@@ -129,4 +135,15 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
 interface ObjectFromCsv {
   [key: string]: string | number | boolean | null;
+}
+
+
+function isInMarketHours(): boolean {
+  const hoursMinutes: string = moment().format("HHmm"); // 14時50分なら"1450"となる。
+  if (hoursMinutes > "0855" && hoursMinutes < "1530") {
+    return true;
+  } else {
+    console.log(hoursMinutes + '(HHmm) is not in market hours.');
+    return false;
+  }
 }
