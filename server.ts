@@ -46,7 +46,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           let newResults = results
             .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
             .map(result => Object.assign({
-              'code': '' + result['銘柄コード'],
+              'code': ('' + result['銘柄コード']).replace(/\./g, ':'),
               'date': '' + result['現在日付'],
               'updated': '' + result['現在日付'] + result['現在値詳細時刻'],
               'timestamp': now,
@@ -74,8 +74,11 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
             console.log('diffMinutes: ' + diffMinutes + 'm');
             delete stock.updated;
 
-            if ((isInMarketHours() && diffMinutes < 10) || !isProductionMode) { // 現在時刻との差が10分未満ならWrite対象
-
+            if ( // 現在時刻との差が10分未満ならWrite対象
+              (!stock.code.includes(':') && isInStockMarketHours() && diffMinutes < 10) || // 株式
+              (stock.code.includes(':') && isInFutureMarketHours() && diffMinutes < 10) || // 指数先物
+              !isProductionMode // Test Mode
+            ) {
               console.time(`firebase write ${stock.code} ${i}`);
               const stockCategory = isProductionMode ? 'stocks' : 'stocks:test';
               const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
@@ -108,11 +111,12 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               const summaryKeys = ['code', 'date', 'timestamp', '現在値', '現在値詳細時刻', '現在値フラグ', '出来高', '始値', '高値', '安値'];
               Object.keys(stock).map(key => {
                 if (summaryKeys.includes(key)) {
-                  if (key === '現在値') {
-                    stockSummary['終値'] = stock[key];
-                  } else {
-                    stockSummary[key] = stock[key];
-                  }
+                  // if (key === '現在値') {
+                  //   stockSummary['終値'] = stock[key];
+                  // } else {
+                  //   stockSummary[key] = stock[key];
+                  // }
+                  stockSummary[key] = stock[key];
                 }
               });
               const stockSummaryCategory = isProductionMode ? 'stocks:summary' : 'stocks:summary:test';
@@ -138,12 +142,22 @@ interface ObjectFromCsv {
 }
 
 
-function isInMarketHours(): boolean {
+function isInStockMarketHours(): boolean {
   const hoursMinutes: string = moment().format("HHmm"); // 14時50分なら"1450"となる。
-  if (hoursMinutes > "0855" && hoursMinutes < "1530") {
+  if (hoursMinutes > "0855" && hoursMinutes < "1520") {
     return true;
   } else {
-    console.log(hoursMinutes + '(HHmm) is not in market hours.');
+    console.log(hoursMinutes + '(HHmm) is not in stock market hours.');
+    return false;
+  }
+}
+
+function isInFutureMarketHours(): boolean {
+  const hoursMinutes: string = moment().format("HHmm"); // 14時50分なら"1450"となる。
+  if ((hoursMinutes > "0840" && hoursMinutes < "1520") || (hoursMinutes > "1625" && hoursMinutes <= "2359") || ((hoursMinutes >= "0000" && hoursMinutes < "0535"))) {
+    return true;
+  } else {
+    console.log(hoursMinutes + '(HHmm) is not in future market hours.');
     return false;
   }
 }
