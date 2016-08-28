@@ -1,3 +1,4 @@
+import 'babel-polyfill';
 import chokidar from 'chokidar'; // @types/chokidar
 import parse from 'csv-parse'; // @types/csv-parse
 import fs from 'fs'; // @types/node
@@ -59,7 +60,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
             })
             .map(result => { // プロパティ値が文字列で'null'の場合はnull値で置換する。
               Object.keys(result).map(key => {
-                if (result[key] === 'null') {
+                if (result[key] === 'null' || result[key] === '') {
                   result[key] = null;
                 }
               });
@@ -106,6 +107,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 }
               });
 
+
               // 日足データをFirebaseに書き込む。
               let stockSummary = {};
               const summaryKeys = ['code', 'date', 'timestamp', '現在値', '現在値詳細時刻', '現在値フラグ', '出来高', '始値', '高値', '安値'];
@@ -125,6 +127,39 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 if (err) { console.error(err); }
                 console.log(stockSummaryTreePath);
                 console.log(stockSummary);
+              });
+
+
+              // IndexをFirebaseに書き込む。
+              const stockIndex = {
+                timestamp: stock.timestamp
+              };
+              const stockIndexCategory = isProductionMode ? 'stocks:index' : 'stocks:index:test';
+              const stockIndexTreePath = stockIndexCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
+              firebase.database().ref(stockIndexTreePath).set(stockIndex, (err) => {
+                if (err) { console.error(err); }
+                console.log(stockIndexTreePath);
+                console.log(stockIndex);
+              });
+
+              const stockIndexDate = {
+                date: stock.date
+              };
+              const stockIndexDateTreePath = stockIndexCategory + '/' + stock.code + '/dates/' + stock.date;
+              firebase.database().ref(stockIndexDateTreePath).set(stockIndexDate, (err) => {
+                if (err) { console.error(err); }
+                console.log(stockIndexDateTreePath);
+                console.log(stockIndexDate);
+              });
+
+              const stockIndexCode = {
+                code: stock.code
+              };
+              const stockIndexCodeTreePath = stockIndexCategory + '/codes/' + stock.code;
+              firebase.database().ref(stockIndexCodeTreePath).set(stockIndexCode, (err) => {
+                if (err) { console.error(err); }
+                console.log(stockIndexCodeTreePath);
+                console.log(stockIndexCode);
               });
 
             }

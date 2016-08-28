@@ -10,7 +10,7 @@ Realtime stock data writer from CSV (on local disk) to Firebase endlessly.
 {
   "csvStoreDir": ["C:", "chokidar"],
   "firebase": {
-    "databaseURL": "https://xxxxxx.firebaseio.com"
+    "databaseURL": "https://{your-project-id}.firebaseio.com"
   }
 }
 ```
