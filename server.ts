@@ -117,6 +117,15 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               } else { // stockがcacheにない場合
                 uploadStock = Object.assign({}, stock);
               }
+              if (uploadStock['出来高']) { // 出来高に変化があったときは現在値に関するデータを全て含める。
+                [
+                  '現在値', '現在値ティック', '現在値詳細時刻',
+                  '歩み１', '歩み２', '歩み３', '歩み４',
+                  '歩み１詳細時刻', '歩み２詳細時刻', '歩み３詳細時刻', '歩み４詳細時刻'
+                ].forEach(key => {
+                  uploadStock[key] = stock[key];
+                });
+              }
               delete uploadStock['timestamp'];
 
               // console.log(cachedStocks[stock.code]);
@@ -153,7 +162,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
               // 日足データをFirebaseに書き込む。
               let stockSummary = {};
-              const summaryKeys = ['code', 'date', '銘柄名称', '現在値', '現在値詳細時刻', '現在値フラグ', '出来高', '始値', '高値', '安値'];
+              const summaryKeys = ['code', 'date', '銘柄名称', '現在値', '現在値詳細時刻', '現在値ティック', '現在値フラグ', '出来高', '始値', '高値', '安値'];
               Object.keys(stock).map(key => {
                 if (summaryKeys.includes(key)) {
                   stockSummary[key] = stock[key];
