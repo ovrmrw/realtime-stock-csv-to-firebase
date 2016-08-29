@@ -17,7 +17,9 @@
     "build:w": "concurrently -k \"npm run tsc:w\" \"npm run babel:w\" ",
     "prestart": "npm run build",
     "start": "node dest/server.js",
-    "pro": "set PRODUCTION=true && npm start"
+    "pro": "set PRODUCTION=true && npm start",
+    "remove:testdata": "ts-babel-node --ignoreWarnings 2304 remove-testdata.ts",
+    "get:testdata": "ts-babel-node --ignoreWarnings 2304 get-testdata.ts"
   },
   "keywords": [],
   "author": "",
