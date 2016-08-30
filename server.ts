@@ -104,15 +104,14 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           newResults.forEach((stock, i) => {
             const now: number = moment().valueOf();
             const diffMinutes: number = Math.abs((now - timestamp) / 1000 / 60); // nowとtimestampの差が何分あるか求める。
-            console.log('diffMinutes: ' + diffMinutes + 'm');
+            console.log(stock.code, 'diffMinutes: ' + diffMinutes + 'm');
 
             if ( // 現在時刻との差が10分未満ならWrite対象
               (!stock.code.includes(':') && isInStockMarketHours() && diffMinutes < 10) || // 株式
               (stock.code.includes(':') && isInFutureMarketHours() && diffMinutes < 10) || // 指数先物
               !isProductionMode // Test Mode
-            ) {
-              console.log('-'.repeat(80));
-              console.time(`firebase write ${stock.code} ${i}`);
+            ) {              
+              console.time(`firebase write ${filePath} ${stock.code}`);
 
 
               // Firebaseに株価データをWriteする。
@@ -143,9 +142,10 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 if (err) {
                   console.error(err);
                 } else {
+                  console.log('-'.repeat(80));
                   console.log(stockTreePath);
                   console.log(uploadStock);
-                  console.timeEnd(`firebase write ${stock.code} ${i}`);
+                  console.timeEnd(`firebase write ${filePath} ${stock.code}`);
                   cachedStocks[stock.code] = stock;
 
                   // FirebaseのlastUpdateを更新する。
