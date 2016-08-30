@@ -46,12 +46,13 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
       fs.readFile(filePath, 'utf8', (err, data: string) => {
         if (err) { throw err; }
-        // CSVファイルの作成時刻(または更新時刻)を取得する。
+
+        // CSVファイルの作成時刻(または更新時刻)を取得する。ファイルがRamDisk上にあると値がおかしくなるので注意。
         let timestamp: number;
         if (event === 'change') {
-          timestamp = fs.statSync(filePath).mtime.getTime();
+          timestamp = fs.statSync(filePath).mtime.valueOf();
         } else {
-          timestamp = fs.statSync(filePath).ctime.getTime();
+          timestamp = fs.statSync(filePath).ctime.valueOf();
         }
 
         // CSVファイルを削除する。
@@ -60,8 +61,11 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
         });
 
 
+        // CSVファイルをパースしてJSオブジェクトの配列を取得する。
         parse(data, { columns: true, auto_parse: true }, (err, results: Array<ObjectFromCsv>) => {
           if (err) { throw err; }
+
+          // resultsを加工する。
           const newResults = results
             // .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
             .filter(result => result['銘柄コード'] && result['現在日付']) // 最低限のValidation
@@ -71,9 +75,9 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               // 'updated': '' + result['現在日付'] + ('' + result['現在値詳細時刻']).replace(/:/g, ''), // 現在値詳細時刻は文字列として受け取っておかないと'000301'は頭の0がカットされてしまう。
               // 'timestamp': timestamp, // timestamp
             }))
-            .map(result => {
+            .map(result => { // 不要なプロパティを削除する。
               // ['コメント', '銘柄コード', '市場コード', '銘柄名称', '現在日付'].forEach(key => {
-              ['コメント'].forEach(key => {
+              ['コメント', '銘柄コード', '市場コード'].forEach(key => {
                 delete result[key];
               });
               return result;
@@ -101,7 +105,6 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
             const now: number = moment().valueOf();
             const diffMinutes: number = Math.abs((now - timestamp) / 1000 / 60); // nowとtimestampの差が何分あるか求める。
             console.log('diffMinutes: ' + diffMinutes + 'm');
-            // delete stock.updated;
 
             if ( // 現在時刻との差が10分未満ならWrite対象
               (!stock.code.includes(':') && isInStockMarketHours() && diffMinutes < 10) || // 株式
@@ -133,11 +136,6 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   uploadStock[key] = stock[key];
                 });
               }
-              // delete uploadStock['timestamp'];
-
-              // console.log(cachedStocks[stock.code]);
-              // console.log(stock);
-              // console.log(uploadStock);
 
               const stockCategory = isProductionMode ? 'stocks' : 'stocks:test';
               const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
@@ -196,43 +194,52 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               }
 
 
-              // IndexをFirebaseに書き込む。
-              const indexObj = {
+              // IndexをFirebaseに書き込む。後にこれらのキーだけを使う。
+              const indexObj = { // Firebaseは何らかのオブジェクトを各RefPathにWriteしなければならない。
                 i: 1
               };
               const stockIndexCategory = isProductionMode ? 'stocks:index' : 'stocks:index:test';
-              const stockIndexTreePath = stockIndexCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
-              firebase.database().ref(stockIndexTreePath).update(indexObj, (err) => {
+              const stockIndexRefPaths: string[] = [
+                stockIndexCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp,
+                stockIndexCategory + '/' + stock.code + '/dates/' + stock.date,
+                stockIndexCategory + '/codes/' + stock.code,
+              ];
+              const stockIndexTreeObj = stockIndexRefPaths.reduce((obj, refPath) => {
+                obj[refPath] = indexObj;
+                return obj;
+              }, {});
+
+              firebase.database().ref().update(stockIndexTreeObj, (err) => {
                 if (err) {
                   console.error(err);
                 } else {
-                  console.log(stockIndexTreePath, indexObj);
+                  console.log(stockIndexTreeObj);
                 }
               });
 
               // const stockIndexDate = {
               //   date: stock.date
               // };
-              const stockIndexDateTreePath = stockIndexCategory + '/' + stock.code + '/dates/' + stock.date;
-              firebase.database().ref(stockIndexDateTreePath).update(indexObj, (err) => {
-                if (err) {
-                  console.error(err);
-                } else {
-                  console.log(stockIndexDateTreePath, indexObj);
-                }
-              });
+              // const stockIndexDateTreePath = stockIndexCategory + '/' + stock.code + '/dates/' + stock.date;
+              // firebase.database().ref(stockIndexDateTreePath).update(indexObj, (err) => {
+              //   if (err) {
+              //     console.error(err);
+              //   } else {
+              //     console.log(stockIndexDateTreePath, indexObj);
+              //   }
+              // });
 
               // const stockIndexCode = {
               //   code: stock.code
               // };
-              const stockIndexCodeTreePath = stockIndexCategory + '/codes/' + stock.code;
-              firebase.database().ref(stockIndexCodeTreePath).update(indexObj, (err) => {
-                if (err) {
-                  console.error(err);
-                } else {
-                  console.log(stockIndexCodeTreePath, indexObj);
-                }
-              });
+              // const stockIndexCodeTreePath = stockIndexCategory + '/codes/' + stock.code;
+              // firebase.database().ref(stockIndexCodeTreePath).update(indexObj, (err) => {
+              //   if (err) {
+              //     console.error(err);
+              //   } else {
+              //     console.log(stockIndexCodeTreePath, indexObj);
+              //   }
+              // });
 
             }
 
