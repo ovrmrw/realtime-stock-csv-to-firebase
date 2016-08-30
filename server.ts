@@ -43,23 +43,33 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
       console.log('='.repeat(90));
       console.log(event, filePath);
 
+
       fs.readFile(filePath, 'utf8', (err, data: string) => {
         if (err) { throw err; }
-        // console.log(data);
+        // CSVファイルの作成時刻(または更新時刻)を取得する。
+        let timestamp: number;
+        if (event === 'change') {
+          timestamp = fs.statSync(filePath).mtime.getTime();
+        } else {
+          timestamp = fs.statSync(filePath).ctime.getTime();
+        }
+
+        // CSVファイルを削除する。
+        fs.unlink(filePath, (err) => {
+          if (err) { console.error(err); }
+        });
+
 
         parse(data, { columns: true, auto_parse: true }, (err, results: Array<ObjectFromCsv>) => {
           if (err) { throw err; }
-
-          // const now = moment().valueOf();
-          const ctime: number = fs.statSync(filePath).ctime.getTime();
-
           const newResults = results
-            .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
+            // .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
+            .filter(result => result['銘柄コード'] && result['現在日付']) // 最低限のValidation
             .map(result => Object.assign(result, {
               'code': ('' + result['銘柄コード']).replace(/\./g, ':'),
               'date': '' + result['現在日付'],
               // 'updated': '' + result['現在日付'] + ('' + result['現在値詳細時刻']).replace(/:/g, ''), // 現在値詳細時刻は文字列として受け取っておかないと'000301'は頭の0がカットされてしまう。
-              'timestamp': ctime, // timestamp
+              // 'timestamp': timestamp, // timestamp
             }))
             .map(result => {
               // ['コメント', '銘柄コード', '市場コード', '銘柄名称', '現在日付'].forEach(key => {
@@ -89,7 +99,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           // Firebaseに書き込む          
           newResults.forEach((stock, i) => {
             const now: number = moment().valueOf();
-            const diffMinutes: number = Math.abs((now - ctime) / 1000 / 60); // nowとctimeの差が何分あるか求める。
+            const diffMinutes: number = Math.abs((now - timestamp) / 1000 / 60); // nowとtimestampの差が何分あるか求める。
             console.log('diffMinutes: ' + diffMinutes + 'm');
             // delete stock.updated;
 
@@ -110,9 +120,6 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   if ((cachedStock[key] && cachedStock[key] !== stock[key]) || (!cachedStock[key] && stock[key])) {
                     uploadStock[key] = stock[key];
                   }
-                  // } else if (['code', 'date', 't'].includes(key)) { // 検索キーとなるものは必須。
-                  //   uploadStock[key] = stock[key];
-                  // }
                 });
               } else { // stockがcacheにない場合
                 uploadStock = Object.assign({}, stock);
@@ -126,14 +133,14 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   uploadStock[key] = stock[key];
                 });
               }
-              delete uploadStock['timestamp'];
+              // delete uploadStock['timestamp'];
 
               // console.log(cachedStocks[stock.code]);
               // console.log(stock);
               // console.log(uploadStock);
 
               const stockCategory = isProductionMode ? 'stocks' : 'stocks:test';
-              const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
+              const stockTreePath = stockCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
               firebase.database().ref(stockTreePath).set(uploadStock, (err) => {
                 if (err) {
                   console.error(err);
@@ -143,15 +150,10 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   console.timeEnd(`firebase write ${stock.code} ${i}`);
                   cachedStocks[stock.code] = stock;
 
-                  // CSVファイルを削除する。
+                  // FirebaseのlastUpdateを更新する。
                   if (i === newResults.length - 1) {
-                    fs.unlink(filePath, (err) => {
-                      if (err) { console.error(err); }
-                    });
-
-                    // FirebaseのlastUpdateを更新する。
                     firebase.database().ref('lastUpdate').update({
-                      serial: ctime
+                      serial: timestamp
                     }, (err) => {
                       if (err) { console.error(err); }
                     });
@@ -199,7 +201,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 i: 1
               };
               const stockIndexCategory = isProductionMode ? 'stocks:index' : 'stocks:index:test';
-              const stockIndexTreePath = stockIndexCategory + '/' + stock.code + '/' + stock.date + '/' + stock.timestamp;
+              const stockIndexTreePath = stockIndexCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
               firebase.database().ref(stockIndexTreePath).update(indexObj, (err) => {
                 if (err) {
                   console.error(err);
