@@ -110,7 +110,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               (!stock.code.includes(':') && isInStockMarketHours() && diffMinutes < 10) || // 株式
               (stock.code.includes(':') && isInFutureMarketHours() && diffMinutes < 10) || // 指数先物
               !isProductionMode // Test Mode
-            ) {              
+            ) {
               console.time(`firebase write ${filePath} ${stock.code}`);
 
 
@@ -126,11 +126,18 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
               } else { // stockがcacheにない場合
                 uploadStock = Object.assign({}, stock);
               }
+              if (uploadStock['現在値']) { // 現在値に変化があったときは歩みに関するデータを全て含める。
+                [
+                  '現在値ティック', '現在値詳細時刻',
+                  '歩み１', '歩み２', '歩み３', '歩み４',
+                  '歩み１詳細時刻', '歩み２詳細時刻', '歩み３詳細時刻', '歩み４詳細時刻'
+                ].forEach(key => {
+                  uploadStock[key] = stock[key];
+                });
+              }
               if (uploadStock['出来高']) { // 出来高に変化があったときは現在値に関するデータを全て含める。
                 [
                   '現在値', '現在値ティック', '現在値詳細時刻',
-                  // '歩み１', '歩み２', '歩み３', '歩み４',
-                  // '歩み１詳細時刻', '歩み２詳細時刻', '歩み３詳細時刻', '歩み４詳細時刻'
                 ].forEach(key => {
                   uploadStock[key] = stock[key];
                 });
