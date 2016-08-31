@@ -57,7 +57,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
           return;
         }
-        console.log('timestamp: ' + timestamp);
+        console.log('timestamp: ' + timestamp, moment(timestamp).format()); // 日本時間に変換した時刻が表示される。
 
         // CSVファイルを削除する。
         fs.unlink(filePath, (err) => {
