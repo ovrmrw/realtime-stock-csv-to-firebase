@@ -1,6 +1,6 @@
-const moment = require('moment');
+let moment = require('moment');
 
-const now = moment().valueOf();
+const now = new Date().valueOf();
 
 const updated = moment("20160827220000", "YYYYMMDDHHmmss").valueOf();
 
@@ -22,10 +22,7 @@ console.log('-'.repeat((80)));
 // moment().locale('ja');
 // console.log(moment().locale('ja').valueOf());
 
-console.log(new Date().valueOf())
-console.log(moment().valueOf())
-console.log(new Date(new Date().valueOf()))
 
-console.log(moment(new Date().valueOf()).format()) // 特に指定はしていないが自動的に日本時間に変換されている。
-console.log(moment(new Date().valueOf()).format('YYYY-MM-DD hh:mm:ss a'))
-console.log(moment(moment().valueOf()).format('YYYY-MM-DD hh:mm:ss a'))
+console.log(moment(now).format()) // 特に指定はしていないが自動的に日本時間に変換されている。キモい。
+console.log(moment(now).utc().format()) // これはグリニッジ標準時？
+console.log(moment(now).utc().add(9, 'h').format()) // 標準時に一度戻してから日本時間に変換している。

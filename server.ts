@@ -22,7 +22,10 @@ firebase.initializeApp(firebaseConfig);
 
 // Firebaseとのコネクションを前以って張っておく。こうすることで初回Write時に余計なWaitが発生しない。
 firebase.database().ref('lastUpdate').on('value', (snapshot: firebase.database.DataSnapshot) => {
-  console.log('lastUpdate: ', snapshot.val());
+  const val = snapshot.val() as { serial: number };
+  if (val.serial) {
+    console.log('lastUpdate: ', val, moment(val.serial).utc().add(9, 'h').format());
+  }
   firebase.database().ref('lastUpdate').off();
 });
 
@@ -57,7 +60,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
           return;
         }
-        console.log('timestamp: ' + timestamp, moment(timestamp).format()); // 日本時間に変換した時刻が表示される。
+        console.log('timestamp: ' + timestamp, moment(timestamp).utc().add(9, 'h').format()); // 日本時間に変換した時刻が表示される。
 
         // CSVファイルを削除する。
         fs.unlink(filePath, (err) => {
@@ -106,7 +109,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
           // Firebaseに書き込む          
           newResults.forEach((stock, i) => {
-            const now: number = moment().valueOf();
+            const now: number = new Date().valueOf();
             const diffMinutes: number = Math.abs((now - timestamp) / 1000 / 60); // nowとtimestampの差が何分あるか求める。
             console.log(stock.code, 'diffMinutes: ' + diffMinutes + 'm');
 
@@ -268,7 +271,7 @@ interface ObjectFromCsv {
 
 
 function isInStockMarketHours(): boolean {
-  const hoursMinutes: string = moment().format("HHmm"); // 14時50分なら"1450"となる。
+  const hoursMinutes: string = moment().utc().add(9, 'h').format("HHmm"); // 14時50分なら"1450"となる。
   if (hoursMinutes > "0855" && hoursMinutes < "1520") {
     return true;
   } else {
@@ -278,7 +281,7 @@ function isInStockMarketHours(): boolean {
 }
 
 function isInFutureMarketHours(): boolean {
-  const hoursMinutes: string = moment().format("HHmm"); // 14時50分なら"1450"となる。
+  const hoursMinutes: string = moment().utc().add(9, 'h').format("HHmm"); // 14時50分なら"1450"となる。
   if ((hoursMinutes > "0840" && hoursMinutes < "1520") || (hoursMinutes > "1625" && hoursMinutes <= "2359") || ((hoursMinutes >= "0000" && hoursMinutes < "0535"))) {
     return true;
   } else {
