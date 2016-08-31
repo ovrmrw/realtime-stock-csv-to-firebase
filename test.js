@@ -26,3 +26,7 @@ console.log('-'.repeat((80)));
 console.log(moment(now).format()) // 特に指定はしていないが自動的に日本時間に変換されている。キモい。
 console.log(moment(now).utc().format()) // これはグリニッジ標準時？
 console.log(moment(now).utc().add(9, 'h').format()) // 標準時に一度戻してから日本時間に変換している。
+
+
+console.log(moment().utcOffset(540))
+console.log(moment().utcOffset(540).format())

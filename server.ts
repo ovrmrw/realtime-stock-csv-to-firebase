@@ -8,6 +8,7 @@ import lodash from 'lodash' // @types/lodash
 import firebase from 'firebase';
 import { createCsvStoreDirectory } from './create-directory';
 
+const JP_TIME_OFFSET = 540
 const config = require(path.join(path.resolve(), '.config.json'));
 
 const CSV_STORE_DIR = path.join(...config.csvStoreDir as string[]);
@@ -24,7 +25,7 @@ firebase.initializeApp(firebaseConfig);
 firebase.database().ref('lastUpdate').on('value', (snapshot: firebase.database.DataSnapshot) => {
   const val = snapshot.val() as { serial: number };
   if (val.serial) {
-    console.log('lastUpdate: ', val, moment(val.serial).utc().add(9, 'h').format());
+    console.log('lastUpdate: ', val, moment(val.serial).utcOffset(JP_TIME_OFFSET).format());
   }
   firebase.database().ref('lastUpdate').off();
 });
@@ -60,7 +61,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
           console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
           return;
         }
-        console.log('timestamp: ' + timestamp, moment(timestamp).utc().add(9, 'h').format()); // 日本時間に変換した時刻が表示される。
+        console.log('timestamp: ' + timestamp, moment(timestamp).utcOffset(JP_TIME_OFFSET).format()); // 日本時間に変換した時刻が表示される。
 
         // CSVファイルを削除する。
         fs.unlink(filePath, (err) => {
@@ -271,7 +272,7 @@ interface ObjectFromCsv {
 
 
 function isInStockMarketHours(): boolean {
-  const hoursMinutes: string = moment().utc().add(9, 'h').format("HHmm"); // 14時50分なら"1450"となる。
+  const hoursMinutes: string = moment().utcOffset(JP_TIME_OFFSET).format("HHmm"); // 14時50分なら"1450"となる。
   if (hoursMinutes > "0855" && hoursMinutes < "1520") {
     return true;
   } else {
@@ -281,7 +282,7 @@ function isInStockMarketHours(): boolean {
 }
 
 function isInFutureMarketHours(): boolean {
-  const hoursMinutes: string = moment().utc().add(9, 'h').format("HHmm"); // 14時50分なら"1450"となる。
+  const hoursMinutes: string = moment().utcOffset(JP_TIME_OFFSET).format("HHmm"); // 14時50分なら"1450"となる。
   if ((hoursMinutes > "0840" && hoursMinutes < "1520") || (hoursMinutes > "1625" && hoursMinutes <= "2359") || ((hoursMinutes >= "0000" && hoursMinutes < "0535"))) {
     return true;
   } else {
