@@ -6,10 +6,12 @@ import path from 'path' // @types/node
 import moment from 'moment';
 import lodash from 'lodash' // @types/lodash
 import firebase from 'firebase';
+import { createCsvStoreDirectory } from './create-directory';
 
 const config = require(path.join(path.resolve(), '.config.json'));
 
 const CSV_STORE_DIR = path.join(...config.csvStoreDir as string[]);
+createCsvStoreDirectory(CSV_STORE_DIR);
 console.log('Observing ' + CSV_STORE_DIR + ' directory ...');
 
 const firebaseConfig = {
@@ -45,15 +47,17 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
 
       fs.readFile(filePath, 'utf8', (err, data: string) => {
-        if (err) { throw err; }
+        if (err) { console.error(err); }
 
         // CSVファイルの作成時刻(または更新時刻)を取得する。ファイルがRamDisk上にあると値がおかしくなるので注意。
         let timestamp: number;
-        if (event === 'change') {
-          timestamp = fs.statSync(filePath).mtime.valueOf();
+        if (filePath.split('__').length > 1) {
+          timestamp = +filePath.split('__')[1];
         } else {
-          timestamp = fs.statSync(filePath).ctime.valueOf();
+          console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
+          return;
         }
+        console.log('timestamp: ' + timestamp);
 
         // CSVファイルを削除する。
         fs.unlink(filePath, (err) => {
@@ -63,7 +67,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
         // CSVファイルをパースしてJSオブジェクトの配列を取得する。
         parse(data, { columns: true, auto_parse: true }, (err, results: Array<ObjectFromCsv>) => {
-          if (err) { throw err; }
+          if (err) { console.error(err); }
 
           // resultsを加工する。
           const newResults = results
