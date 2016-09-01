@@ -55,8 +55,8 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
         // CSVファイルの作成時刻(または更新時刻)を取得する。ファイルがRamDisk上にあると値がおかしくなるので注意。
         let timestamp: number;
-        if (filePath.split('__').length > 1 && moment(filePath.split('__')[1]).isValid()) {
-          timestamp = +filePath.split('__')[1];
+        if (filePath.split('__').length > 1) {
+          timestamp = +filePath.split('__')[1]; // TODO: Validationする
         } else {
           console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
           return;
