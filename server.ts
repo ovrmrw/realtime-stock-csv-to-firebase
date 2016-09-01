@@ -25,7 +25,7 @@ firebase.initializeApp(firebaseConfig);
 firebase.database().ref('lastUpdate').on('value', (snapshot: firebase.database.DataSnapshot) => {
   const val = snapshot.val() as { serial: number };
   if (val.serial) {
-    console.log('lastUpdate: ', val, moment(val.serial).utcOffset(JP_TIME_OFFSET).format());
+    console.log('lastUpdate:', val, moment(val.serial).utcOffset(JP_TIME_OFFSET).format());
   }
   firebase.database().ref('lastUpdate').off();
 });
@@ -55,13 +55,13 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
         // CSVファイルの作成時刻(または更新時刻)を取得する。ファイルがRamDisk上にあると値がおかしくなるので注意。
         let timestamp: number;
-        if (filePath.split('__').length > 1) {
-          timestamp = +filePath.split('__')[1]; // TODO: Validationする
+        if (filePath.split('__').length > 1 && moment(filePath.split('__')[1]).isValid()) {
+          timestamp = +filePath.split('__')[1];
         } else {
           console.error('SKIPPED: filePath( ' + filePath + ' ) should contain the string as "__{UnixTimestamp}__"');
           return;
         }
-        console.log('timestamp: ' + timestamp, moment(timestamp).utcOffset(JP_TIME_OFFSET).format()); // 日本時間に変換した時刻が表示される。
+        console.log('timestamp:', timestamp, moment(timestamp).utcOffset(JP_TIME_OFFSET).format()); // 日本時間に変換した時刻が表示される。
 
         // CSVファイルを削除する。
         fs.unlink(filePath, (err) => {

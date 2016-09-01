@@ -5,10 +5,9 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "node lib/overwrite-modules.js",
-    "alt": "node --require ts-babel-node/register server.ts",
+    "ts": "ts-babel-node server.ts",
+    "ts:alt": "node --require ts-babel-node/register server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "overwrite": "node lib/overwrite-modules.js",
-    "ts": "ts-babel-node --ignoreWarnings 2304 server.ts",
     "tsc": "tsc --outDir .dest-tsc",
     "tsc:w": "tsc --outDir .dest-tsc --watch",
     "babel": "babel .dest-tsc --out-dir dest --presets latest --no-comments",
@@ -18,8 +17,8 @@
     "prestart": "npm run build",
     "start": "node dest/server.js",
     "pro": "set PRODUCTION=true && npm start",
-    "remove:testdata": "ts-babel-node --ignoreWarnings 2304 remove-testdata.ts",
-    "get:testdata": "ts-babel-node --ignoreWarnings 2304 get-testdata.ts"
+    "remove:testdata": "ts-babel-node remove-testdata.ts",
+    "get:testdata": "ts-babel-node get-testdata.ts"
   },
   "keywords": [],
   "author": "",
@@ -35,7 +34,7 @@
     "fs-extra": "^0.30.0",
     "ts-babel-node": "^1.0.0",
     "ts-node": "^0.9.3",
-    "typescript": "^2.0.0"
+    "typescript": "^2.0.2"
   },
   "dependencies": {
     "babel-polyfill": "^6.9.1",

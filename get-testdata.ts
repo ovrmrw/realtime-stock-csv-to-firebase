@@ -32,17 +32,20 @@ firebase.initializeApp(firebaseConfig);
 // });
 
 
-firebase.database().ref('stocks:index:test/codes').on('value', (snapshot: firebase.database.DataSnapshot) => {
+firebase.database().ref('stocks:index:test/codes').orderByKey().on('value', (snapshot: firebase.database.DataSnapshot) => {
   console.log(snapshot.val());
   console.log(Object.keys(snapshot.val())); // ['1234','2345',...]
+  console.log(Object.keys(snapshot.val()).length);
 });
 
-firebase.database().ref('stocks:index:test/N225:FUT01/dates').on('value', (snapshot: firebase.database.DataSnapshot) => {
+firebase.database().ref('stocks:index:test/N225:FUT01/dates').orderByKey().on('value', (snapshot: firebase.database.DataSnapshot) => {
   console.log(snapshot.val());
   console.log(Object.keys(snapshot.val())); // ['20160829','20160830',...]
+  console.log(Object.keys(snapshot.val()).length);
 });
 
-firebase.database().ref('stocks:index:test/N225:FUT01/20160829').on('value', (snapshot: firebase.database.DataSnapshot) => {
+firebase.database().ref('stocks:index:test/N225:FUT01/20160829').orderByKey().on('value', (snapshot: firebase.database.DataSnapshot) => {
   console.log(snapshot.val());
   console.log(Object.keys(snapshot.val())); // ['1472479518289','1472479520107',...]
+  console.log(Object.keys(snapshot.val()).length);
 });
