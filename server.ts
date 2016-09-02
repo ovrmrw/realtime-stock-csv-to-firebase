@@ -40,7 +40,8 @@ if (isProductionMode) {
 
 
 let cachedStocks = {};
-let cachedSummaries = {};
+let cachedSummaries = {} as { [code: string]: Summary };
+let cachedWalkings = {} as { [code: string]: Walking };
 
 
 chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string, filePath: string) => {
@@ -78,10 +79,11 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
             // .filter(result => !!result['銘柄コード'] && !!result['現在値'] && !!result['出来高']) // 最低限のValidation
             .filter(result => result['銘柄コード'] && result['現在日付']) // 最低限のValidation
             .map(result => Object.assign(result, {
-              'code': ('' + result['銘柄コード']).replace(/\./g, ':'),
-              'date': '' + result['現在日付'],
+              'code': ('' + result['銘柄コード']).replace(/\./g, ':') as string,
+              'date': '' + result['現在日付'] as string,
               // 'updated': '' + result['現在日付'] + ('' + result['現在値詳細時刻']).replace(/:/g, ''), // 現在値詳細時刻は文字列として受け取っておかないと'000301'は頭の0がカットされてしまう。
               // 'timestamp': timestamp, // timestamp
+              '売買フラグ': null as (string | null),
             }))
             .map(result => { // 不要なプロパティを削除する。
               // ['コメント', '銘柄コード', '市場コード', '銘柄名称', '現在日付'].forEach(key => {
@@ -104,6 +106,16 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   result[key] = null;
                 }
               });
+              return result;
+            })
+            .map(result => {
+              if (result['現在値'] === result['最良売気配値１']) {
+                result.売買フラグ = 'B'; // Buy
+              } else if (result['現在値'] === result['最良買気配値１']) {
+                result['売買フラグ'] = 'S'; // Sell
+              } else {
+                result['売買フラグ'] = ' ';
+              }
               return result;
             });
 
@@ -176,14 +188,14 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 
 
               // 日足データをFirebaseに書き込む。
-              let stockSummary = {};
+              let stockSummary: Summary = {};
               const summaryKeys = ['code', 'date', '銘柄名称', '現在値', '現在値詳細時刻', '現在値ティック', '現在値フラグ', '出来高', '始値', '高値', '安値'];
               Object.keys(stock).map(key => {
                 if (summaryKeys.includes(key)) {
                   stockSummary[key] = stock[key];
                 }
               });
-              let uploadSummary = {};
+              let uploadSummary: Summary = {};
               if (cachedSummaries[stock.code]) { // summaryがcacheにある場合
                 const cachedSummary = cachedSummaries[stock.code];
                 Object.keys(stock).map(key => {
@@ -204,6 +216,44 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                     console.log(stockSummaryTreePath);
                     console.log(uploadSummary);
                     cachedSummaries[stock.code] = stockSummary;
+                  }
+                });
+              }
+
+
+              // 歩み値をFirebaseに書き込む。
+              let stockWalking: Walking = {};
+              const stockWalkingKeys = ['現在値', '現在値詳細時刻', '出来高', '売買フラグ'];
+              Object.keys(stock).map(key => {
+                if (stockWalkingKeys.includes(key)) {
+                  if (key === '現在値') {
+                    stockWalking.約定値 = +stock[key];
+                  } else {
+                    stockWalking[key] = stock[key];
+                  }
+                }
+              });
+              const cachedWalking = cachedWalkings[stock.code];
+              if (cachedWalking && cachedWalking.出来高) {
+                stockWalking.出来高 = stockWalking.出来高 - cachedWalking.出来高;
+                if (stockWalking.約定値 > cachedWalking.約定値) {
+                  stockWalking.現在値ティック = '↑';
+                } else if (stockWalking.約定値 < cachedWalking.約定値) {
+                  stockWalking.現在値ティック = '↓';
+                } else {
+                  stockWalking.現在値ティック = ' ';
+                }
+              }
+              if (Object.keys(stockWalking).length) {
+                const stockWalkingCategory = isProductionMode ? 'stocks:walking' : 'stocks:walking:test';
+                const stockWalkingTreePath = stockWalkingCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
+                firebase.database().ref(stockWalkingTreePath).update(stockWalking, (err) => {
+                  if (err) {
+                    console.error(err);
+                  } else {
+                    console.log(stockWalkingTreePath);
+                    console.log(stockWalking);
+                    cachedWalkings[stock.code] = stockWalking;
                   }
                 });
               }
@@ -232,30 +282,6 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 }
               });
 
-              // const stockIndexDate = {
-              //   date: stock.date
-              // };
-              // const stockIndexDateTreePath = stockIndexCategory + '/' + stock.code + '/dates/' + stock.date;
-              // firebase.database().ref(stockIndexDateTreePath).update(indexObj, (err) => {
-              //   if (err) {
-              //     console.error(err);
-              //   } else {
-              //     console.log(stockIndexDateTreePath, indexObj);
-              //   }
-              // });
-
-              // const stockIndexCode = {
-              //   code: stock.code
-              // };
-              // const stockIndexCodeTreePath = stockIndexCategory + '/codes/' + stock.code;
-              // firebase.database().ref(stockIndexCodeTreePath).update(indexObj, (err) => {
-              //   if (err) {
-              //     console.error(err);
-              //   } else {
-              //     console.log(stockIndexCodeTreePath, indexObj);
-              //   }
-              // });
-
             }
 
           });
@@ -266,9 +292,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
 });
 
 
-interface ObjectFromCsv {
-  [key: string]: string | number | boolean | null;
-}
+
 
 
 function isInStockMarketHours(): boolean {
@@ -289,4 +313,32 @@ function isInFutureMarketHours(): boolean {
     console.log(hoursMinutes + '(HHmm) is not in future market hours.');
     return false;
   }
+}
+
+
+
+interface ObjectFromCsv {
+  [key: string]: string | number | null;
+}
+
+interface Summary {
+  code?: string
+  date?: string
+  銘柄名称?: string
+  現在値?: number
+  現在値詳細時刻?: string
+  現在値ティック?: string
+  現在値フラグ?: string
+  出来高?: number
+  始値?: number
+  高値?: number
+  安値?: number
+}
+
+interface Walking {
+  約定値?: number
+  現在値詳細時刻?: string
+  出来高?: number
+  現在値ティック?: string
+  売買フラグ?: string
 }
