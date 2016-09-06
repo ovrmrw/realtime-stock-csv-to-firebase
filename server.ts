@@ -243,7 +243,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 } else {
                   stockWalking.現在値ティック = ' ';
                 }
-                if (Object.keys(stockWalking).length) {
+                if (Object.keys(stockWalking).length && stockWalking.出来高差分 > 0) { // 出来高差分がある場合のみ記録する。
                   const stockWalkingCategory = isProductionMode ? 'stocks:walking' : 'stocks:walking:test';
                   const stockWalkingTreePath = stockWalkingCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
                   firebase.database().ref(stockWalkingTreePath).update(stockWalking, (err) => {
