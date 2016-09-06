@@ -236,7 +236,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 }
               });
               const cachedWalking = cachedWalkings[stock.code];
-              if (cachedWalking && cachedWalking.出来高 && cachedWalking.約定値) { // cacheが存在する場合のみ歩み値の記録をする。
+              if (cachedWalking && cachedWalking.出来高) { // cacheが存在する場合のみ歩み値の記録をする。
                 stockWalking.出来高差分 = stockWalking.出来高 - cachedWalking.出来高;
                 if (stockWalking.約定値 > cachedWalking.約定値) {
                   stockWalking.現在値ティック = '↑';
