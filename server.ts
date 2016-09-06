@@ -234,8 +234,8 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 }
               });
               const cachedWalking = cachedWalkings[stock.code];
-              if (cachedWalking && cachedWalking.出来高) {
-                stockWalking.出来高 = stockWalking.出来高 - cachedWalking.出来高;
+              if (cachedWalking && cachedWalking.出来高 && cachedWalking.約定値) { // cacheが存在する場合のみ歩み値の記録をする。
+                stockWalking.出来高差分 = stockWalking.出来高 - cachedWalking.出来高;
                 if (stockWalking.約定値 > cachedWalking.約定値) {
                   stockWalking.現在値ティック = '↑';
                 } else if (stockWalking.約定値 < cachedWalking.約定値) {
@@ -243,19 +243,21 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 } else {
                   stockWalking.現在値ティック = ' ';
                 }
-              }
-              if (Object.keys(stockWalking).length) {
-                const stockWalkingCategory = isProductionMode ? 'stocks:walking' : 'stocks:walking:test';
-                const stockWalkingTreePath = stockWalkingCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
-                firebase.database().ref(stockWalkingTreePath).update(stockWalking, (err) => {
-                  if (err) {
-                    console.error(err);
-                  } else {
-                    console.log(stockWalkingTreePath);
-                    console.log(stockWalking);
-                    cachedWalkings[stock.code] = stockWalking;
-                  }
-                });
+                if (Object.keys(stockWalking).length) {
+                  const stockWalkingCategory = isProductionMode ? 'stocks:walking' : 'stocks:walking:test';
+                  const stockWalkingTreePath = stockWalkingCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
+                  firebase.database().ref(stockWalkingTreePath).update(stockWalking, (err) => {
+                    if (err) {
+                      console.error(err);
+                    } else {
+                      console.log(stockWalkingTreePath);
+                      console.log(stockWalking);
+                      cachedWalkings[stock.code] = stockWalking;
+                    }
+                  });
+                }
+              } else {
+                cachedWalkings[stock.code] = stockWalking;
               }
 
 
@@ -339,6 +341,7 @@ interface Walking {
   約定値?: number
   現在値詳細時刻?: string
   出来高?: number
+  出来高差分?: number
   現在値ティック?: string
   売買フラグ?: string
 }
