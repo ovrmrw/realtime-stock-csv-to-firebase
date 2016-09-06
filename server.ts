@@ -173,7 +173,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   console.log(stockTreePath);
                   console.log(uploadStock);
                   console.timeEnd(`firebase write ${filePath} ${stock.code}`);
-                  cachedStocks[stock.code] = stock;
+                  // cachedStocks[stock.code] = stock;
 
                   // FirebaseのlastUpdateを更新する。
                   if (i === newResults.length - 1) {
@@ -185,6 +185,7 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   }
                 }
               });
+              cachedStocks[stock.code] = stock;
 
 
               // 日足データをFirebaseに書き込む。
@@ -215,9 +216,10 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                   } else {
                     console.log(stockSummaryTreePath);
                     console.log(uploadSummary);
-                    cachedSummaries[stock.code] = stockSummary;
+                    // cachedSummaries[stock.code] = stockSummary;
                   }
                 });
+                cachedSummaries[stock.code] = stockSummary;
               }
 
 
@@ -246,15 +248,17 @@ chokidar.watch(CSV_STORE_DIR, { ignored: /[\/\\]\./ }).on('all', (event: string,
                 if (Object.keys(stockWalking).length && stockWalking.出来高差分 > 0) { // 出来高差分がある場合のみ記録する。
                   const stockWalkingCategory = isProductionMode ? 'stocks:walking' : 'stocks:walking:test';
                   const stockWalkingTreePath = stockWalkingCategory + '/' + stock.code + '/' + stock.date + '/' + timestamp;
+                  delete stockWalking.出来高; // 出来高プロパティを削除する。
                   firebase.database().ref(stockWalkingTreePath).update(stockWalking, (err) => {
                     if (err) {
                       console.error(err);
                     } else {
                       console.log(stockWalkingTreePath);
                       console.log(stockWalking);
-                      cachedWalkings[stock.code] = stockWalking;
+                      // cachedWalkings[stock.code] = stockWalking;
                     }
                   });
+                  cachedWalkings[stock.code] = stockWalking;
                 }
               } else {
                 cachedWalkings[stock.code] = stockWalking;
